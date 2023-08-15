@@ -124,9 +124,9 @@ class InpaintCAModel(Model):
     def build_gan_discriminator(
             self, batch, reuse=False, training=True):
         with tf.variable_scope('discriminator', reuse=reuse):
-            d = self.build_sn_patch_gan_discriminator(
-                batch, reuse=reuse, training=training)
-            return d
+            return self.build_sn_patch_gan_discriminator(
+                batch, reuse=reuse, training=training
+            )
 
     def build_graph_with_losses(
             self, FLAGS, batch_data, training=True, summary=False,
@@ -158,11 +158,11 @@ class InpaintCAModel(Model):
             xin, mask, reuse=reuse, training=training,
             padding=FLAGS.padding)
         batch_predicted = x2
-        losses = {}
         # apply mask and complete image
         batch_complete = batch_predicted*mask + batch_incomplete*(1.-mask)
-        # local patches
-        losses['ae_loss'] = FLAGS.l1_loss_alpha * tf.reduce_mean(tf.abs(batch_pos - x1))
+        losses = {
+            'ae_loss': FLAGS.l1_loss_alpha * tf.reduce_mean(tf.abs(batch_pos - x1))
+        }
         losses['ae_loss'] += FLAGS.l1_loss_alpha * tf.reduce_mean(tf.abs(batch_pos - x2))
         if summary:
             scalar_summary('losses/ae_loss', losses['ae_loss'])
@@ -188,15 +188,13 @@ class InpaintCAModel(Model):
         if FLAGS.guided:
             # conditional GANs
             batch_pos_neg = tf.concat([batch_pos_neg, tf.tile(edge, [2, 1, 1, 1])], axis=3)
-        # wgan with gradient penalty
-        if FLAGS.gan == 'sngan':
-            pos_neg = self.build_gan_discriminator(batch_pos_neg, training=training, reuse=reuse)
-            pos, neg = tf.split(pos_neg, 2)
-            g_loss, d_loss = gan_hinge_loss(pos, neg)
-            losses['g_loss'] = g_loss
-            losses['d_loss'] = d_loss
-        else:
-            raise NotImplementedError('{} not implemented.'.format(FLAGS.gan))
+        if FLAGS.gan != 'sngan':
+            raise NotImplementedError(f'{FLAGS.gan} not implemented.')
+        pos_neg = self.build_gan_discriminator(batch_pos_neg, training=training, reuse=reuse)
+        pos, neg = tf.split(pos_neg, 2)
+        g_loss, d_loss = gan_hinge_loss(pos, neg)
+        losses['g_loss'] = g_loss
+        losses['d_loss'] = d_loss
         if summary:
             # summary the magnitude of gradients from different losses w.r.t. predicted image
             gradients_summary(losses['g_loss'], batch_predicted, name='g_loss')
@@ -257,7 +255,9 @@ class InpaintCAModel(Model):
                        func=tf.image.resize_bilinear))
         images_summary(
             tf.concat(viz_img, axis=2),
-            name+'_raw_incomplete_complete', FLAGS.viz_max_out)
+            f'{name}_raw_incomplete_complete',
+            FLAGS.viz_max_out,
+        )
         return batch_complete
 
     def build_static_infer_graph(self, FLAGS, batch_data, name):
@@ -292,6 +292,4 @@ class InpaintCAModel(Model):
         x1, x2, flow = self.build_inpaint_net(
             xin, masks, reuse=reuse, training=is_training)
         batch_predict = x2
-        # apply mask and reconstruct
-        batch_complete = batch_predict*masks + batch_incomplete*(1-masks)
-        return batch_complete
+        return batch_predict*masks + batch_incomplete*(1-masks)

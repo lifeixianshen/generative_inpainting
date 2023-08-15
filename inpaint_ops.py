@@ -39,7 +39,7 @@ def gen_conv(x, cnum, ksize, stride=1, rate=1, name='conv',
 
     """
     assert padding in ['SYMMETRIC', 'SAME', 'REFELECT']
-    if padding == 'SYMMETRIC' or padding == 'REFELECT':
+    if padding in ['SYMMETRIC', 'REFELECT']:
         p = int(rate*(ksize-1)/2)
         x = tf.pad(x, [[0,0], [p, p], [p, p], [0,0]], mode=padding)
         padding = 'VALID'
@@ -75,8 +75,14 @@ def gen_deconv(x, cnum, name='upsample', padding='SAME', training=True):
     with tf.variable_scope(name):
         x = resize(x, func=tf.image.resize_nearest_neighbor)
         x = gen_conv(
-            x, cnum, 3, 1, name=name+'_conv', padding=padding,
-            training=training)
+            x,
+            cnum,
+            3,
+            1,
+            name=f'{name}_conv',
+            padding=padding,
+            training=training,
+        )
     return x
 
 
@@ -247,10 +253,11 @@ def resize_mask_like(mask, x):
         tf.Tensor: resized mask
 
     """
-    mask_resize = resize(
-        mask, to_shape=x.get_shape().as_list()[1:3],
-        func=tf.image.resize_nearest_neighbor)
-    return mask_resize
+    return resize(
+        mask,
+        to_shape=x.get_shape().as_list()[1:3],
+        func=tf.image.resize_nearest_neighbor,
+    )
 
 
 def contextual_attention(f, b, mask=None, ksize=3, stride=1, rate=1,
@@ -383,13 +390,13 @@ def test_contextual_attention(args):
     h, w, _ = b.shape
     b = b[:h//grid*grid, :w//grid*grid, :]
     b = np.expand_dims(b, 0)
-    logger.info('Size of imageA: {}'.format(b.shape))
+    logger.info(f'Size of imageA: {b.shape}')
 
     f = cv2.imread(args.imageB)
     h, w, _ = f.shape
     f = f[:h//grid*grid, :w//grid*grid, :]
     f = np.expand_dims(f, 0)
-    logger.info('Size of imageB: {}'.format(f.shape))
+    logger.info(f'Size of imageB: {f.shape}')
 
     with tf.Session() as sess:
         bt = tf.constant(b, dtype=tf.float32)
@@ -406,11 +413,10 @@ def make_color_wheel():
     RY, YG, GC, CB, BM, MR = (15, 6, 4, 11, 13, 6)
     ncols = RY + YG + GC + CB + BM + MR
     colorwheel = np.zeros([ncols, 3])
-    col = 0
     # RY
     colorwheel[0:RY, 0] = 255
     colorwheel[0:RY, 1] = np.transpose(np.floor(255*np.arange(0, RY) / RY))
-    col += RY
+    col = 0 + RY
     # YG
     colorwheel[col:col+YG, 0] = 255 - np.transpose(np.floor(255*np.arange(0, YG) / YG))
     colorwheel[col:col+YG, 1] = 255
@@ -498,9 +504,9 @@ def flow_to_image(flow):
 def flow_to_image_tf(flow, name='flow_to_image'):
     """Tensorflow ops for computing flow to image.
     """
-    with tf.variable_scope(name), tf.device('/cpu:0'):
+    with (tf.variable_scope(name), tf.device('/cpu:0')):
         img = tf.py_func(flow_to_image, [flow], tf.float32, stateful=False)
-        img.set_shape(flow.get_shape().as_list()[0:-1]+[3])
+        img.set_shape(flow.get_shape().as_list()[:-1] + [3])
         img = img / 127.5 - 1.
         return img
 
@@ -526,9 +532,9 @@ def highlight_flow(flow):
 def highlight_flow_tf(flow, name='flow_to_image'):
     """Tensorflow ops for highlight flow.
     """
-    with tf.variable_scope(name), tf.device('/cpu:0'):
+    with (tf.variable_scope(name), tf.device('/cpu:0')):
         img = tf.py_func(highlight_flow, [flow], tf.float32, stateful=False)
-        img.set_shape(flow.get_shape().as_list()[0:-1]+[3])
+        img.set_shape(flow.get_shape().as_list()[:-1] + [3])
         img = img / 127.5 - 1.
         return img
 

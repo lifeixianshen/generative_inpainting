@@ -31,7 +31,7 @@ if __name__ == "__main__":
     with open(FLAGS.data_flist[FLAGS.dataset][0]) as f:
         fnames = f.read().splitlines()
     if FLAGS.guided:
-        fnames = [(fname, fname[:-4] + '_edge.jpg') for fname in fnames]
+        fnames = [(fname, f'{fname[:-4]}_edge.jpg') for fname in fnames]
         img_shapes = [img_shapes, img_shapes]
     data = ng.data.DataFromFNames(
         fnames, img_shapes, random_crop=FLAGS.random_crop,
@@ -45,8 +45,7 @@ if __name__ == "__main__":
         with open(FLAGS.data_flist[FLAGS.dataset][1]) as f:
             val_fnames = f.read().splitlines()
         if FLAGS.guided:
-            val_fnames = [
-                (fname, fname[:-4] + '_edge.jpg') for fname in val_fnames]
+            val_fnames = [(fname, f'{fname[:-4]}_edge.jpg') for fname in val_fnames]
         # progress monitor by visualizing static images
         for i in range(FLAGS.static_view_size):
             static_fnames = val_fnames[i:i+1]
@@ -91,12 +90,26 @@ if __name__ == "__main__":
         log_dir=FLAGS.log_dir,
     )
     # add all callbacks
-    trainer.add_callbacks([
-        discriminator_training_callback,
-        ng.callbacks.WeightsViewer(),
-        ng.callbacks.ModelRestorer(trainer.context['saver'], dump_prefix=FLAGS.model_restore+'/snap', optimistic=True),
-        ng.callbacks.ModelSaver(FLAGS.train_spe, trainer.context['saver'], FLAGS.log_dir+'/snap'),
-        ng.callbacks.SummaryWriter((FLAGS.val_psteps//1), trainer.context['summary_writer'], tf.summary.merge_all()),
-    ])
+    trainer.add_callbacks(
+        [
+            discriminator_training_callback,
+            ng.callbacks.WeightsViewer(),
+            ng.callbacks.ModelRestorer(
+                trainer.context['saver'],
+                dump_prefix=f'{FLAGS.model_restore}/snap',
+                optimistic=True,
+            ),
+            ng.callbacks.ModelSaver(
+                FLAGS.train_spe,
+                trainer.context['saver'],
+                f'{FLAGS.log_dir}/snap',
+            ),
+            ng.callbacks.SummaryWriter(
+                (FLAGS.val_psteps // 1),
+                trainer.context['summary_writer'],
+                tf.summary.merge_all(),
+            ),
+        ]
+    )
     # launch training
     trainer.train()

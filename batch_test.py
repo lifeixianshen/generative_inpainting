@@ -58,6 +58,7 @@ if __name__ == "__main__":
     with open(args.flist, 'r') as f:
         lines = f.read().splitlines()
     t = time.time()
+    grid = 4
     for line in lines:
     # for i in range(100):
         image, mask, out = line.split()
@@ -75,10 +76,9 @@ if __name__ == "__main__":
         assert image.shape == mask.shape
 
         h, w, _ = image.shape
-        grid = 4
         image = image[:h//grid*grid, :w//grid*grid, :]
         mask = mask[:h//grid*grid, :w//grid*grid, :]
-        print('Shape of image: {}'.format(image.shape))
+        print(f'Shape of image: {image.shape}')
 
         image = np.expand_dims(image, 0)
         mask = np.expand_dims(mask, 0)
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
         # load pretrained model
         result = sess.run(output, feed_dict={input_image_ph: input_image})
-        print('Processed: {}'.format(out))
+        print(f'Processed: {out}')
         cv2.imwrite(out, result[0][:, :, ::-1])
 
-    print('Time total: {}'.format(time.time() - t))
+    print(f'Time total: {time.time() - t}')

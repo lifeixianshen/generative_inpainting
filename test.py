@@ -35,7 +35,7 @@ if __name__ == "__main__":
     grid = 8
     image = image[:h//grid*grid, :w//grid*grid, :]
     mask = mask[:h//grid*grid, :w//grid*grid, :]
-    print('Shape of image: {}'.format(image.shape))
+    print(f'Shape of image: {image.shape}')
 
     image = np.expand_dims(image, 0)
     mask = np.expand_dims(mask, 0)
